@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Contact</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Simple styling for validation messages */
+        .error-message {
+            color: red;
+            font-size: 0.9em;
+            margin-top: -10px;
+            margin-bottom: 10px;
+            display: none; /* Hidden by default */
+        }
+        /* Style for inputs that fail validation */
+        .input.invalid {
+            border: 2px solid red;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Contact Us</h1>
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="menu.html">Menu</a></li>
+            <li><a href="recipes.html">Recipes</a></li>
+            <li><a href="nutrition.html">Nutrition</a></li>
+            <li><a href="contact.html" class="active">Contact</a></li>
+        </ul>
+    </nav>
+</header>
+
+<section class="content">
+    <h2>Get in Touch</h2>
+    <p>Please use the form below to send us a message.</p>
+    
+    <form id="contact-form" novalidate>
+        <input type="text" name="name" id="name" placeholder="Your name (required)" class="input" required>
+        <div id="name-error" class="error-message">Name is required.</div>
+
+        <input type="email" name="email" id="email" placeholder="Your email (required)" class="input" required>
+        <div id="email-error" class="error-message">A valid email is required.</div>
+
+        <textarea name="message" id="message" placeholder="Your message (required)" class="input" required></textarea>
+        <div id="message-error" class="error-message">Message cannot be empty.</div>
+
+        <button type="submit" class="btn">Send</button>
+    </form>
+
+    <div id="form-response" style="display:none;">
+        <p id="response-message"></p>
+    </div>
+</section>
+
+<footer>
+    <p>© 2025 Food Menu</p>
+</footer>
+
+<script>
+/**
+ * Client-side validation function
+ * @param {HTMLElement} form - The form element to validate
+ * @returns {boolean} - True if the form is valid, false otherwise.
+ */
+function validateForm(form) {
+    let isValid = true;
+    const inputs = form.querySelectorAll('[required]');
+
+    inputs.forEach(input => {
+        const errorDiv = document.getElementById(input.id + '-error');
+        
+        // Reset previous state
+        input.classList.remove('invalid');
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+
+        if (!input.checkValidity()) {
+            isValid = false;
+            input.classList.add('invalid');
+            errorDiv.style.display = 'block';
+
+            // Custom error message logic
+            if (input.validity.valueMissing) {
+                errorDiv.textContent = input.name.charAt(0).toUpperCase() + input.name.slice(1) + ' is required.';
+            } else if (input.type === 'email' && input.validity.typeMismatch) {
+                errorDiv.textContent = 'Please enter a valid email address.';
+            } else {
+                 errorDiv.textContent = 'Invalid input.';
+            }
+        }
+    });
+
+    return isValid;
+}
+
+// Function to show success or error message for API response
+function showResponseMessage(message, type) {
+    const responseDiv = document.getElementById('form-response');
+    const responseMessage = document.getElementById('response-message');
+    responseDiv.style.display = 'block';
+    responseMessage.textContent = message;
+
+    if (type === 'success') {
+        responseMessage.style.color = 'green';
+    } else {
+        responseMessage.style.color = 'red';
+    }
+}
+
+// Main form submission handler
+document.getElementById('contact-form').addEventListener('submit', function(event) {
+    event.preventDefault(); // Prevent the default form submission
+
+    const form = event.target;
+    document.getElementById('form-response').style.display = 'none'; // Hide previous API response
+
+    // 1. Client-side Validation Check
+    if (!validateForm(form)) {
+        // Validation failed, stop execution. Messages are already displayed by validateForm.
+        return; 
+    }
+
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+    const message = document.getElementById('message').value;
+
+    // API URL (replace with your actual API endpoint)
+    // NOTE: For a real application, this endpoint must also perform its own Server-side Validation!
+    const apiUrl = 'https://your-api-endpoint.com/submit-form';
+
+    // Form data to send
+    const formData = {
+        name: name,
+        email: email,
+        message: message
+    };
+
+    // 2. Submit the form data to the API using fetch
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(async response => {
+        // 3. API Response Validation (checking for HTTP errors like 4xx or 5xx)
+        if (!response.ok) {
+             // Try to parse error body if available, otherwise use status text
+             let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+             try {
+                 const errorData = await response.json();
+                 // Assuming the API returns a 'message' field on error
+                 errorMessage = errorData.message || errorMessage;
+             } catch (e) {
+                 // Ignore JSON parsing error if response wasn't JSON
+             }
+             throw new Error(errorMessage); 
+        }
+        return response.json(); // Parse the JSON response for successful requests
+    })
+    .then(data => {
+        // 4. Handle success (Assuming the API returns { success: true, ... })
+        if (data && data.success) {
+            showResponseMessage('Your message has been sent successfully! Thank you.', 'success');
+            form.reset(); // Clear the form on success
+        } else {
+             // Handle successful HTTP status but business logic failure from API body
+            showResponseMessage(data.message || 'Submission failed. The API reported an issue.', 'error');
+        }
+    })
+    .catch(error => {
+        // 5. Handle network errors or errors thrown from the response validation
+        showResponseMessage(error.message || 'Error sending your message. Please try again later.', 'error');
+        console.error('Fetch Error:', error);
+    });
+});
+</script>
+
+</body>
+</html>
+
